@@ -1,0 +1,761 @@
+<!DOCTYPE html>
+
+<html lang="en" data-theme="light">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#E4EAEE">
+<title>Scientific Calculator</title>
+<style>
+:root{
+  --bg:#E4EAEE; --grid:rgba(22,33,42,.055); --ink:#16212A; --muted:#5B6B77;
+  --panel:#F3F6F8; --line:#6F8594; --disp:#FFFFFF;
+  --key:#FFFFFF; --keyEdge:#BCC8D1; --fn:#D3DDE4; --fnEdge:#AEBCC6;
+  --op:#33566F; --opEdge:#1F3A4D; --opInk:#FFFFFF;
+  --eq:#0D7A78; --eqEdge:#085553; --clr:#E7D9C3; --clrEdge:#C7B390; --clrInk:#4A3512;
+  --amber:#B97A00; --err:#B3261E; --focus:#0D7A78;
+  --kh:clamp(40px,6.3dvh,56px); --sh:clamp(34px,5.1dvh,46px);
+}
+[data-theme="dark"]{
+  --bg:#0E161C; --grid:rgba(190,215,230,.045); --ink:#E6EEF2; --muted:#8CA0AD;
+  --panel:#142029; --line:#5A7586; --disp:#091014;
+  --key:#1F2F3A; --keyEdge:#0A1015; --fn:#2B404E; --fnEdge:#0A1015;
+  --op:#3F6C8C; --opEdge:#1B3345; --opInk:#FFFFFF;
+  --eq:#1BA39C; --eqEdge:#0C5F5B; --clr:#4A3F2B; --clrEdge:#1E190F; --clrInk:#F1DDB4;
+  --amber:#E7B24A; --err:#FF8A80; --focus:#3CC4B9;
+}
+*{box-sizing:border-box}
+html,body{margin:0;height:100%}
+body{
+  background-color:var(--bg);
+  background-image:linear-gradient(var(--grid) 1px,transparent 1px),linear-gradient(90deg,var(--grid) 1px,transparent 1px);
+  background-size:24px 24px;
+  color:var(--ink);
+  font-family:system-ui,-apple-system,"Segoe UI",Roboto,"Helvetica Neue",Arial,sans-serif;
+  -webkit-tap-highlight-color:transparent;
+}
+button{font:inherit;color:inherit;cursor:pointer;touch-action:manipulation;-webkit-user-select:none;user-select:none}
+button:focus-visible{outline:3px solid var(--focus);outline-offset:2px}
+.app{max-width:1120px;margin:0 auto;padding:10px 10px calc(14px + env(safe-area-inset-bottom))}
+
+/* top bar */
+.top{display:flex;align-items:center;gap:8px;flex-wrap:wrap;padding:4px 2px 10px}
+.top h1{font-size:1.05rem;font-weight:700;margin:0;margin-right:auto;letter-spacing:.01em}
+.seg{display:inline-flex;border:2px solid var(–line);border-radius:999px;overflow:hidden;background:var(–panel)}
+.seg button{border:0;background:transparent;padding:7px 13px;font-size:.82rem;font-weight:600;color:var(–muted)}
+.seg button[aria-pressed=“true”]{background:var(–op);color:var(–opInk)}
+.chip{border:2px solid var(–line);background:var(–panel);border-radius:999px;padding:7px 13px;font-size:.82rem;font-weight:600}
+
+/* layout */
+.layout{display:grid;grid-template-columns:minmax(0,1fr);gap:14px;justify-content:center}
+.calc{background:var(–panel);border:2px solid var(–line);border-radius:18px;padding:10px;max-width:780px;width:100%;margin:0 auto}
+
+/* display */
+.display{position:relative;background:var(–disp);border:2px solid var(–line);border-radius:12px;padding:8px 12px 10px;min-height:130px;display:flex;flex-direction:column;justify-content:flex-end;gap:2px}
+.badges{position:absolute;top:7px;left:10px;display:flex;gap:6px;font-size:.7rem;font-weight:700}
+.badges span{padding:1px 7px;border-radius:6px;background:var(–fn);color:var(–ink)}
+.badges #memBadge{background:var(–amber);color:#fff}
+.badges #memBadge[hidden]{display:none}
+.prev{min-height:1.2em;font-size:.78rem;color:var(–muted);text-align:right;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;padding-top:16px}
+.expr{font-family:ui-monospace,“SF Mono”,“Cascadia Mono”,Menlo,Consolas,monospace;font-size:1.05rem;text-align:right;min-height:1.5em;max-height:4.6em;overflow-y:auto;overflow-wrap:anywhere;word-break:break-all}
+.result{font-family:ui-monospace,“SF Mono”,“Cascadia Mono”,Menlo,Consolas,monospace;font-weight:700;text-align:right;min-height:1.2em;line-height:1.15;overflow-wrap:anywhere;color:var(–muted);transition:color .12s}
+.result.final{color:var(–ink)}
+.result.err{color:var(–err);font-family:inherit;font-size:1rem!important;font-weight:600}
+.result .errk{display:block;font-size:.75rem;font-weight:700;margin-bottom:2px}
+.copy{position:absolute;top:6px;right:8px;border:2px solid var(–line);background:var(–panel);border-radius:8px;padding:3px 9px;font-size:.72rem;font-weight:600}
+
+/* keys */
+.memrow{display:grid;grid-template-columns:repeat(6,1fr);gap:5px;margin-top:8px}
+.tabs{display:flex;gap:5px;margin-top:8px}
+.tabs button{flex:1;border:2px solid var(–line);background:var(–panel);border-radius:9px;padding:6px 0;font-size:.8rem;font-weight:600;color:var(–muted)}
+.tabs button[aria-selected=“true”]{background:var(–ink);color:var(–bg);border-color:var(–ink)}
+.keys{display:grid;grid-template-columns:minmax(0,1fr);gap:8px;margin-top:8px}
+.sci{display:grid;gap:5px;align-content:start}
+.grp{display:grid;grid-template-columns:repeat(6,1fr);grid-auto-rows:var(–sh);gap:5px}
+.pad{display:grid;grid-template-columns:repeat(4,1fr);grid-auto-rows:var(–kh);gap:6px}
+.sci[data-tab=“0”] .grp:not([data-g=“0”]),
+.sci[data-tab=“1”] .grp:not([data-g=“1”]),
+.sci[data-tab=“2”] .grp:not([data-g=“2”]){display:none}
+
+.k{border:2px solid var(–line);border-radius:10px;background:var(–key);box-shadow:0 2px 0 var(–keyEdge);font-size:1.15rem;font-weight:600;padding:0;min-width:0}
+.k:active{transform:translateY(1px);box-shadow:0 1px 0 var(–keyEdge)}
+.k.f{background:var(–fn);box-shadow:0 2px 0 var(–fnEdge);font-size:.82rem;font-weight:600}
+.k.m{background:transparent;box-shadow:none;font-size:.78rem;font-weight:700;color:var(–amber)}
+.k.o{border-color:var(–opEdge);background:var(–op);color:var(–opInk);box-shadow:0 2px 0 var(–opEdge);font-size:1.3rem}
+.k.c{border-color:var(–clrEdge);background:var(–clr);color:var(–clrInk);box-shadow:0 2px 0 var(–clrEdge);font-size:1rem}
+.k.e{border-color:var(–eqEdge);background:var(–eq);color:#fff;box-shadow:0 2px 0 var(–eqEdge);font-size:1.6rem;grid-row:span 2}
+
+/* history */
+.history{position:fixed;top:0;right:0;bottom:0;width:min(350px,92vw);background:var(–panel);border-left:2px solid var(–line);transform:translateX(105%);transition:transform .22s ease;z-index:20;display:flex;flex-direction:column;padding:12px;box-shadow:-8px 0 30px rgba(0,0,0,.18)}
+.history.open{transform:none}
+.hhead{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.hhead h2{font-size:1rem;margin:0;margin-right:auto}
+.hlist{flex:1;overflow-y:auto;display:flex;flex-direction:column;gap:7px}
+.hitem{background:var(–disp);border:2px solid var(–line);border-radius:10px;padding:6px 8px;display:flex;flex-direction:column;align-items:flex-end;gap:2px}
+.hitem button{border:0;background:transparent;text-align:right;padding:2px 4px;border-radius:6px;max-width:100%;overflow-wrap:anywhere}
+.hitem button:hover{background:var(–fn)}
+.h-expr{font-size:.8rem;color:var(–muted);font-family:ui-monospace,Menlo,Consolas,monospace}
+.h-res{font-size:1.1rem;font-weight:700;font-family:ui-monospace,Menlo,Consolas,monospace}
+.hempty{color:var(–muted);font-size:.9rem;padding:10px 4px}
+.hhint{font-size:.75rem;color:var(–muted);margin:6px 0 0}
+.toast{position:fixed;left:50%;bottom:22px;transform:translate(-50%,20px);background:var(–ink);color:var(–bg);padding:8px 14px;border-radius:999px;font-size:.85rem;opacity:0;pointer-events:none;transition:.18s;z-index:30;max-width:90vw;text-align:center}
+.toast.show{opacity:1;transform:translate(-50%,0)}
+
+/* tablet and desktop */
+@media (min-width:640px){
+:root{–kh:52px;–sh:52px}
+.app{padding:14px 16px 20px}
+.calc{padding:14px}
+.tabs{display:none}
+.keys{grid-template-columns:minmax(0,1.5fr) minmax(0,1fr);gap:12px}
+.sci{gap:5px}
+.sci .grp{display:grid!important}
+.grp{gap:6px}
+.k.f{font-size:.9rem}
+.display{min-height:150px}
+.expr{font-size:1.2rem}
+}
+@media (min-width:1100px){
+.layout{grid-template-columns:minmax(0,780px) 330px}
+.history{position:static;transform:none;width:auto;box-shadow:none;border:2px solid var(–line);border-radius:18px;z-index:auto;max-height:640px}
+#histBtn,#histClose{display:none}
+}
+@media (min-width:640px) and (max-height:520px){
+:root{–kh:38px;–sh:38px}
+.display{min-height:100px}
+}
+@media (prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+
+</head>
+<body>
+<div class="app">
+  <header class="top">
+    <h1>Scientific Calculator</h1>
+    <div class="seg" role="group" aria-label="Angle mode">
+      <button id="degBtn" aria-pressed="true">DEG</button>
+      <button id="radBtn" aria-pressed="false">RAD</button>
+    </div>
+    <button class="chip" id="themeBtn" aria-label="Switch colour theme">Dark</button>
+    <button class="chip" id="histBtn">History</button>
+  </header>
+
+  <main class="layout">
+    <section class="calc" aria-label="Calculator">
+      <div class="display">
+        <div class="badges"><span id="angleBadge">DEG</span><span id="memBadge" hidden>M</span></div>
+        <button class="copy" id="copyBtn" aria-label="Copy result">Copy</button>
+        <div class="prev" id="prev"></div>
+        <div class="expr" id="expr" aria-label="Expression"></div>
+        <div class="result" id="result" aria-live="polite">0</div>
+      </div>
+      <div class="memrow" id="memrow"></div>
+      <div class="tabs" id="tabs" role="tablist">
+        <button role="tab" data-tab="0" aria-selected="true">Trig</button>
+        <button role="tab" data-tab="1" aria-selected="false">Log and powers</button>
+        <button role="tab" data-tab="2" aria-selected="false">More</button>
+      </div>
+      <div class="keys">
+        <div class="sci" id="sci" data-tab="0"></div>
+        <div class="pad" id="pad"></div>
+      </div>
+    </section>
+
+```
+<aside class="history" id="history" aria-label="Calculation history">
+  <div class="hhead">
+    <h2>History</h2>
+    <button class="chip" id="histClear">Clear history</button>
+    <button class="chip" id="histClose">Close</button>
+  </div>
+  <div class="hlist" id="hlist"></div>
+  <p class="hhint">Tap a result to reuse it. Tap an expression to edit it.</p>
+</aside>
+```
+
+  </main>
+</div>
+<div class="toast" id="toast" role="status"></div>
+
+<script>
+/* ENGINE START */
+const Engine = (() => {
+  class CalcError extends Error { constructor(kind, msg){ super(msg); this.kind = kind; } }
+  const mathErr = m => new CalcError('math', m);
+  const synErr  = m => new CalcError('syntax', m);
+
+  const FUNCS = ['asinh','acosh','atanh','asin','acos','atan','sinh','cosh','tanh','sin','cos','tan',
+                 'log2','log','ln','sqrt','cbrt','abs','floor','ceil','sign'];
+  const WORDS = ['nPr','nCr','mod','root'];
+  const CONSTS = ['Ans','pi','e'];
+  const D2R = Math.PI / 180;
+
+  function tokenize(src){
+    const s = src.replace(/×/g,'*').replace(/÷/g,'/').replace(/−/g,'-').replace(/π/g,'pi').replace(/√/g,'sqrt');
+    const toks = []; let i = 0;
+    while (i < s.length){
+      const ch = s[i];
+      if (/\s/.test(ch)){ i++; continue; }
+      const m = /^(?:\d+\.?\d*|\.\d+)(?:E[+-]?\d+)?/.exec(s.slice(i));
+      if (m){
+        if (s[i + m[0].length] === '.') throw synErr('Invalid number');
+        toks.push({t:'num', v:parseFloat(m[0])}); i += m[0].length; continue;
+      }
+      let hit = FUNCS.find(f => s.startsWith(f, i));
+      if (hit){ toks.push({t:'fn', v:hit}); i += hit.length; continue; }
+      hit = WORDS.find(w => s.startsWith(w, i));
+      if (hit){ toks.push({t:'w', v:hit}); i += hit.length; continue; }
+      hit = CONSTS.find(c => s.startsWith(c, i));
+      if (hit){ toks.push({t:'const', v:hit}); i += hit.length; continue; }
+      if ('+-*/^()!%'.includes(ch)){ toks.push({t:'op', v:ch}); i++; continue; }
+      throw synErr('Unexpected "' + ch + '"');
+    }
+    return toks;
+  }
+
+  function prepare(src){
+    const tokens = tokenize(src);
+    let depth = 0;
+    for (const t of tokens){
+      if (t.t === 'op' && t.v === '(') depth++;
+      if (t.t === 'op' && t.v === ')'){ depth--; if (depth < 0) throw synErr('Unmatched )'); }
+    }
+    for (let k = 0; k < depth; k++) tokens.push({t:'op', v:')'});
+    return { tokens, closers: depth };
+  }
+
+  function parse(tokens){
+    let i = 0;
+    const peek = () => tokens[i];
+    const isOp = (t, ...vs) => t && t.t === 'op' && vs.includes(t.v);
+    const isWord = (t, ...vs) => t && t.t === 'w' && vs.includes(t.v);
+    const startsPrimary = t => t && (t.t === 'num' || t.t === 'const' || t.t === 'fn' || (t.t === 'op' && t.v === '('));
+
+    function expr(){
+      let l = term();
+      for (;;){
+        const t = peek();
+        if (isOp(t,'+','-')){ i++; l = {k:'bin', op:t.v, a:l, b:term()}; } else return l;
+      }
+    }
+    function term(){
+      let l = unary();
+      for (;;){
+        const t = peek();
+        if (isOp(t,'*','/') || isWord(t,'mod','nPr','nCr')){ i++; l = {k:'bin', op:t.v, a:l, b:unary()}; }
+        else if (startsPrimary(t) && !(tokens[i-1].t === 'num' && t.t === 'num')){ l = {k:'bin', op:'*', a:l, b:unary()}; }
+        else return l;
+      }
+    }
+    function unary(){
+      const t = peek();
+      if (isOp(t,'-')){ i++; return {k:'neg', a:unary()}; }
+      if (isOp(t,'+')){ i++; return unary(); }
+      return power();
+    }
+    function power(){
+      const b = postfix(); const t = peek();
+      if (isOp(t,'^')){ i++; return {k:'bin', op:'^', a:b, b:unary()}; }
+      if (isWord(t,'root')){ i++; return {k:'bin', op:'root', a:b, b:unary()}; }
+      return b;
+    }
+    function postfix(){
+      let a = primary();
+      for (;;){
+        const t = peek();
+        if (isOp(t,'!','%')){ i++; a = {k:'post', op:t.v, a}; } else return a;
+      }
+    }
+    function primary(){
+      const t = peek();
+      if (!t) throw synErr('Incomplete expression');
+      i++;
+      if (t.t === 'num') return {k:'num', v:t.v};
+      if (t.t === 'const') return {k:'const', v:t.v};
+      if (t.t === 'fn'){
+        if (!isOp(peek(),'(')) throw synErr(t.v + ' needs ( )');
+        i++; const a = expr();
+        if (!isOp(peek(),')')) throw synErr('Missing )');
+        i++; return {k:'fn', name:t.v, a};
+      }
+      if (isOp(t,'(')){
+        const a = expr();
+        if (!isOp(peek(),')')) throw synErr('Missing )');
+        i++; return a;
+      }
+      throw synErr('Unexpected "' + t.v + '"');
+    }
+    const ast = expr();
+    if (i < tokens.length){
+      const t = tokens[i];
+      throw synErr(t.t === 'op' && t.v === ')' ? 'Unmatched )' : 'Unexpected "' + t.v + '"');
+    }
+    return ast;
+  }
+
+  const check = r => {
+    if (Number.isNaN(r)) throw mathErr('Result is not a real number');
+    if (!Number.isFinite(r)) throw mathErr('Result is too large');
+    return r;
+  };
+  const isInt = n => Number.isInteger(n);
+
+  function fact(n){
+    if (!isInt(n) || n < 0) throw mathErr('Factorial needs a whole number, 0 or more');
+    if (n > 170) throw mathErr('Factorial too large (170! is the maximum)');
+    let r = 1; for (let k = 2; k <= n; k++) r *= k; return r;
+  }
+  function perm(n, r){
+    if (!isInt(n) || !isInt(r) || n < 0 || r < 0 || r > n) throw mathErr('nPr needs whole numbers with 0 ≤ r ≤ n');
+    let p = 1; for (let k = n - r + 1; k <= n; k++) p *= k; return check(p);
+  }
+  function comb(n, r){
+    if (!isInt(n) || !isInt(r) || n < 0 || r < 0 || r > n) throw mathErr('nCr needs whole numbers with 0 ≤ r ≤ n');
+    const k = Math.min(r, n - r); let c = 1;
+    for (let j = 1; j <= k; j++) c = c * (n - k + j) / j;
+    return check(Math.round(c));
+  }
+  function pow(a, b){
+    if (a === 0 && b < 0) throw mathErr('Cannot divide by zero');
+    if (a < 0 && !isInt(b)) throw mathErr('A negative number to a fractional power is not real');
+    return check(Math.pow(a, b));
+  }
+  function nroot(n, x){
+    if (n === 0) throw mathErr('Root index cannot be zero');
+    if (x < 0){
+      if (isInt(n) && Math.abs(n) % 2 === 1) return check(-Math.pow(-x, 1 / n));
+      throw mathErr('An even root of a negative number is not real');
+    }
+    if (x === 0 && n < 0) throw mathErr('Cannot divide by zero');
+    return check(Math.pow(x, 1 / n));
+  }
+  function binop(op, a, b){
+    switch (op){
+      case '+': return check(a + b);
+      case '-': return check(a - b);
+      case '*': return check(a * b);
+      case '/': if (b === 0) throw mathErr('Cannot divide by zero'); return check(a / b);
+      case 'mod': if (b === 0) throw mathErr('Cannot take modulo by zero'); return check(a % b);
+      case '^': return pow(a, b);
+      case 'root': return nroot(a, b);
+      case 'nPr': return perm(a, b);
+      case 'nCr': return comb(a, b);
+    }
+    throw synErr('Unknown operator');
+  }
+  function trig(name, x, deg){
+    if (deg){
+      const m = ((x % 360) + 360) % 360;
+      if (name === 'sin'){ if (m % 180 === 0) return 0; if (m === 90) return 1; if (m === 270) return -1; return Math.sin(m * D2R); }
+      if (name === 'cos'){ if (m === 90 || m === 270) return 0; if (m === 0) return 1; if (m === 180) return -1; return Math.cos(m * D2R); }
+      if (m % 180 === 90) throw mathErr('tan is undefined at this angle');
+      if (m % 180 === 0) return 0;
+      return Math.tan(m * D2R);
+    }
+    let r;
+    if (name === 'sin') r = Math.sin(x);
+    else if (name === 'cos') r = Math.cos(x);
+    else { if (Math.abs(Math.cos(x)) < 1e-15) throw mathErr('tan is undefined at this angle'); r = Math.tan(x); }
+    return Math.abs(r) < 1e-15 ? 0 : r;
+  }
+  function func(name, x, ctx){
+    const deg = ctx.angle === 'DEG';
+    switch (name){
+      case 'sin': case 'cos': case 'tan': return check(trig(name, x, deg));
+      case 'asin': if (Math.abs(x) > 1) throw mathErr('sin⁻¹ needs a value from −1 to 1'); return check(deg ? Math.asin(x) / D2R : Math.asin(x));
+      case 'acos': if (Math.abs(x) > 1) throw mathErr('cos⁻¹ needs a value from −1 to 1'); return check(deg ? Math.acos(x) / D2R : Math.acos(x));
+      case 'atan': return check(deg ? Math.atan(x) / D2R : Math.atan(x));
+      case 'sinh': return check(Math.sinh(x));
+      case 'cosh': return check(Math.cosh(x));
+      case 'tanh': return check(Math.tanh(x));
+      case 'asinh': return check(Math.asinh(x));
+      case 'acosh': if (x < 1) throw mathErr('cosh⁻¹ needs a value of 1 or more'); return check(Math.acosh(x));
+      case 'atanh': if (Math.abs(x) >= 1) throw mathErr('tanh⁻¹ needs a value between −1 and 1'); return check(Math.atanh(x));
+      case 'log': if (x <= 0) throw mathErr('log needs a positive number'); return check(Math.log10(x));
+      case 'ln':  if (x <= 0) throw mathErr('ln needs a positive number'); return check(Math.log(x));
+      case 'log2': if (x <= 0) throw mathErr('log₂ needs a positive number'); return check(Math.log2(x));
+      case 'sqrt': if (x < 0) throw mathErr('√ of a negative number is not real'); return check(Math.sqrt(x));
+      case 'cbrt': return check(Math.cbrt(x));
+      case 'abs': return Math.abs(x);
+      case 'floor': return Math.floor(x);
+      case 'ceil': return Math.ceil(x);
+      case 'sign': return Math.sign(x) || 0;
+    }
+    throw synErr('Unknown function ' + name);
+  }
+  function evalNode(n, ctx){
+    switch (n.k){
+      case 'num': return n.v;
+      case 'const': return n.v === 'pi' ? Math.PI : n.v === 'e' ? Math.E : ctx.ans;
+      case 'neg': return -evalNode(n.a, ctx);
+      case 'bin': return binop(n.op, evalNode(n.a, ctx), evalNode(n.b, ctx));
+      case 'post': {
+        const v = evalNode(n.a, ctx);
+        return n.op === '!' ? fact(v) : v / 100;
+      }
+      case 'fn': return func(n.name, evalNode(n.a, ctx), ctx);
+    }
+    throw synErr('Bad expression');
+  }
+
+  const clean = v => { const r = parseFloat(v.toPrecision(14)); return r === 0 ? 0 : r; };
+
+  function format(x){
+    const v = clean(x);
+    if (v === 0) return '0';
+    const a = Math.abs(v);
+    if (a >= 1e15 || a < 1e-6) return v.toExponential().replace('e+','E').replace('e','E');
+    return String(v);
+  }
+
+  function evaluate(src, opts){
+    const o = Object.assign({angle:'DEG', ans:0}, opts || {});
+    const { tokens, closers } = prepare(src);
+    if (!tokens.length) throw synErr('Empty expression');
+    const ast = parse(tokens);
+    const value = clean(check(evalNode(ast, {angle:o.angle, ans:o.ans})));
+    return { value, closed: src + ')'.repeat(closers) };
+  }
+
+  return { evaluate, format, clean, FUNCS, WORDS, CalcError };
+})();
+/* ENGINE END */
+
+/* ---------------- UI ---------------- */
+(() => {
+  const $ = id => document.getElementById(id);
+  const STORE = 'focusprism-scicalc-v1';
+  const FN_OPEN = '(?:' + Engine.FUNCS.join('|') + ')?\\($';
+  const BS_RE = new RegExp('(?:' + Engine.FUNCS.map(f => f + '\\(').join('|') + '|nPr|nCr|mod|root|Ans|pi|\\^\\(-1\\)|E[+-]?|[\\s\\S])$');
+  const NUM_RE = /(\d+\.?\d*|\.\d+)(E[+-]?\d*)?$/;
+
+  const S = { expr:'', done:false, err:null, ans:0, hasAns:false, mem:0, hasMem:false,
+              angle:'DEG', theme:null, hist:[] };
+
+  try {
+    const saved = JSON.parse(localStorage.getItem(STORE) || '{}');
+    ['angle','theme','mem','hasMem','ans','hasAns'].forEach(k => { if (saved[k] !== undefined) S[k] = saved[k]; });
+    if (Array.isArray(saved.hist)) S.hist = saved.hist.slice(0, 60);
+  } catch (e) {}
+  if (!S.theme) S.theme = (window.matchMedia && matchMedia('(prefers-color-scheme: dark)').matches) ? 'dark' : 'light';
+
+  function save(){
+    try {
+      localStorage.setItem(STORE, JSON.stringify({angle:S.angle, theme:S.theme, mem:S.mem, hasMem:S.hasMem,
+        ans:S.ans, hasAns:S.hasAns, hist:S.hist}));
+    } catch (e) {}
+  }
+
+  /* ----- key layout ----- */
+  const MEM = [['MC','mem','MC'],['MR','mem','MR'],['M+','mem','M+'],['M−','mem','M-'],['MS','mem','MS'],['Ans','const','Ans']];
+  const G0 = [['sin','fn','sin'],['cos','fn','cos'],['tan','fn','tan'],['sin⁻¹','fn','asin'],['cos⁻¹','fn','acos'],['tan⁻¹','fn','atan'],
+              ['sinh','fn','sinh'],['cosh','fn','cosh'],['tanh','fn','tanh'],['sinh⁻¹','fn','asinh'],['cosh⁻¹','fn','acosh'],['tanh⁻¹','fn','atanh']];
+  const G1 = [['log₁₀','fn','log'],['ln','fn','ln'],['log₂','fn','log2'],['10ˣ','pow','10^('],['eˣ','pow','e^('],['2ˣ','pow','2^('],
+              ['x²','post','^2'],['x³','post','^3'],['xʸ','infix','^'],['√x','fn','sqrt'],['∛x','fn','cbrt'],['ʸ√x','infix','root']];
+  const G2 = [['n!','post','!'],['nPr','infix','nPr'],['nCr','infix','nCr'],['⌊x⌋','fn','floor'],['⌈x⌉','fn','ceil'],['mod','infix','mod'],
+              ['|x|','fn','abs'],['sgn','fn','sign'],['EXP','exp',''],['1/x','post','^(-1)'],['π','const','pi'],['e','const','e']];
+  const PAD = [['AC','ac','','c'],['CE','ce','','c'],['⌫','bs','','c'],['÷','op','/','o'],
+               ['(','paren','(','f'],[')','paren',')','f'],['%','post','%','f'],['×','op','*','o'],
+               ['7','digit','7'],['8','digit','8'],['9','digit','9'],['−','op','-','o'],
+               ['4','digit','4'],['5','digit','5'],['6','digit','6'],['+','op','+','o'],
+               ['1','digit','1'],['2','digit','2'],['3','digit','3'],['=','eq','','e'],
+               ['±','pm','','f'],['0','digit','0'],['.','dot','.']];
+
+  function mk(parent, spec, cls){
+    const b = document.createElement('button');
+    b.className = 'k ' + (spec[3] || cls || '');
+    b.textContent = spec[0];
+    b.dataset.a = spec[1]; b.dataset.v = spec[2];
+    b.setAttribute('aria-label', spec[0]);
+    parent.appendChild(b);
+  }
+  MEM.forEach(s => mk($('memrow'), s, s[1] === 'mem' ? 'm' : 'f'));
+  [G0, G1, G2].forEach((g, idx) => {
+    const d = document.createElement('div'); d.className = 'grp'; d.dataset.g = idx;
+    g.forEach(s => mk(d, s, 'f')); $('sci').appendChild(d);
+  });
+  PAD.forEach(s => mk($('pad'), s, ''));
+
+  /* ----- helpers ----- */
+  const trailingNum = e => NUM_RE.exec(e);
+  const hasOperand = e => (/[\d.)!%]$|Ans$|pi$|e$/.test(e)) && !/E[+-]?$/.test(e);
+  const depthOf = e => (e.match(/\(/g) || []).length - (e.match(/\)/g) || []).length;
+  const fmtInput = v => { const s = Engine.format(v); return v < 0 ? '(' + s + ')' : s; };
+
+  function disp(s){
+    return s.replace(/asinh\(/g,'sinh⁻¹(').replace(/acosh\(/g,'cosh⁻¹(').replace(/atanh\(/g,'tanh⁻¹(')
+      .replace(/asin\(/g,'sin⁻¹(').replace(/acos\(/g,'cos⁻¹(').replace(/atan\(/g,'tan⁻¹(')
+      .replace(/sqrt\(/g,'√(').replace(/cbrt\(/g,'∛(').replace(/log2\(/g,'log₂(').replace(/sign\(/g,'sgn(')
+      .replace(/pi/g,'π').replace(/\^\(-1\)/g,'⁻¹').replace(/\^2(?![\d.E])/g,'²').replace(/\^3(?![\d.E])/g,'³')
+      .replace(/root/g,' ʸ√ ').replace(/mod/g,' mod ').replace(/nPr/g,' nPr ').replace(/nCr/g,' nCr ')
+      .replace(/\*/g,'×').replace(/\//g,'÷').replace(/-/g,'−');
+  }
+
+  function startNew(){ if (S.done){ S.expr = ''; S.done = false; } S.err = null; }
+
+  function previewValue(){
+    let s = S.expr; if (!s) return null;
+    const trail = new RegExp('(?:nPr|nCr|mod|root|[+\\-*/^]|E[+-]?|' + FN_OPEN.slice(0, -1) + '|\\()$');
+    let prev;
+    do { prev = s; s = s.replace(trail, ''); } while (s !== prev && s);
+    if (!s) return null;
+    try { return Engine.evaluate(s, {angle:S.angle, ans:S.ans}).value; } catch (e) { return null; }
+  }
+  function currentValue(){ return S.done ? S.ans : previewValue(); }
+
+  /* ----- actions ----- */
+  const ACT = {
+    digit(v){
+      startNew();
+      const m = trailingNum(S.expr);
+      if (m && m[0] === '0') S.expr = S.expr.slice(0, -1) + v; else S.expr += v;
+    },
+    dot(){
+      startNew();
+      const m = trailingNum(S.expr);
+      if (m){ if (m[0].includes('.') || m[0].includes('E')) return; S.expr += '.'; }
+      else S.expr += '0.';
+    },
+    op(v){
+      if (S.done){ S.expr = 'Ans' + v; S.done = false; S.err = null; return; }
+      S.err = null;
+      let e = S.expr;
+      if (!e){ if (v === '-') S.expr = '-'; else if (S.hasAns) S.expr = 'Ans' + v; return; }
+      if (/E$/.test(e) && (v === '+' || v === '-')){ S.expr += v; return; }
+      e = e.replace(/E[+-]?$/, '');
+      if (e.endsWith('(')){ if (v === '-') S.expr = e + v; return; }
+      if (/(nPr|nCr|mod|root|\^)$/.test(e)){
+        if (v === '-'){ S.expr = e + v; return; }
+        S.expr = e.replace(/(nPr|nCr|mod|root|\^)$/, '') + v; return;
+      }
+      if (/[+\-*/]$/.test(e)){
+        if (v === '-' && /[*/]$/.test(e)){ S.expr = e + v; return; }
+        e = e.replace(/[+\-*/]+$/, '');
+        if (!e){ S.expr = v === '-' ? '-' : ''; return; }
+      }
+      S.expr = e + v;
+    },
+    post(v){
+      if (S.done){ S.expr = 'Ans' + v; S.done = false; S.err = null; return; }
+      S.err = null;
+      if (hasOperand(S.expr)) S.expr += v;
+    },
+    infix(v){
+      if (S.done){ S.expr = 'Ans' + v; S.done = false; S.err = null; return; }
+      S.err = null;
+      const e = S.expr;
+      if (hasOperand(e)) S.expr += v;
+      else if (/(nPr|nCr|mod|root|\^)$/.test(e)) S.expr = e.replace(/(nPr|nCr|mod|root|\^)$/, '') + v;
+    },
+    pow(v){
+      startNew();
+      S.expr += (hasOperand(S.expr) ? '*' : '') + v;
+    },
+    fn(v){ startNew(); S.expr += v + '('; },
+    const(v){ startNew(); S.expr += v; },
+    paren(v){
+      if (v === '('){ startNew(); S.expr += '('; return; }
+      S.err = null;
+      if (S.done) return;
+      if (depthOf(S.expr) > 0 && hasOperand(S.expr)) S.expr += ')';
+    },
+    exp(){
+      startNew();
+      const m = trailingNum(S.expr);
+      if (m && !m[0].includes('E')) S.expr += 'E';
+    },
+    pm(){
+      if (S.done){ S.expr = fmtInput(-S.ans); S.done = false; return; }
+      S.err = null;
+      const e = S.expr;
+      if (!e){ S.expr = '-'; return; }
+      const wrapped = /(^|[^A-Za-z0-9.)])\(-((?:\d+\.?\d*|\.\d+)(?:E[+-]?\d+)?)\)$/.exec(e);
+      if (wrapped){ S.expr = e.slice(0, e.length - wrapped[0].length) + wrapped[1] + wrapped[2]; return; }
+      const m = trailingNum(e);
+      if (m){ S.expr = e.slice(0, e.length - m[0].length) + '(-' + m[0] + ')'; return; }
+      if (/[+\-*/^(]$/.test(e)) S.expr += '-';
+    },
+    ac(){ S.expr = ''; S.done = false; S.err = null; },
+    ce(){
+      if (S.done){ ACT.ac(); return; }
+      S.err = null;
+      const m = trailingNum(S.expr);
+      if (m) S.expr = S.expr.slice(0, S.expr.length - m[0].length);
+      else ACT.bs();
+    },
+    bs(){
+      S.done = false; S.err = null;
+      S.expr = S.expr.replace(BS_RE, '');
+    },
+    eq(){
+      if (!S.expr) return;
+      try {
+        const r = Engine.evaluate(S.expr, {angle:S.angle, ans:S.ans});
+        S.expr = r.closed; S.err = null;
+        S.ans = r.value; S.hasAns = true; S.done = true;
+        S.hist.unshift({e:S.expr, r:Engine.format(r.value), v:r.value});
+        if (S.hist.length > 60) S.hist.pop();
+        save();
+      } catch (e) {
+        S.done = false;
+        S.err = (e instanceof Engine.CalcError) ? e : {kind:'math', message:'Could not calculate this'};
+      }
+    },
+    mem(v){
+      if (v === 'MC'){ S.mem = 0; S.hasMem = false; toast('Memory cleared'); }
+      else if (v === 'MR'){
+        if (!S.hasMem){ toast('Memory is empty'); return; }
+        startNew();
+        const m = trailingNum(S.expr);
+        if (m) S.expr = S.expr.slice(0, S.expr.length - m[0].length);
+        S.expr += fmtInput(S.mem);
+      } else {
+        const val = currentValue();
+        if (val === null){ toast('Enter a value first'); return; }
+        if (v === 'MS') S.mem = val;
+        else if (v === 'M+') S.mem = Engine.clean(S.mem + val);
+        else S.mem = Engine.clean(S.mem - val);
+        S.hasMem = true;
+        toast('Memory: ' + Engine.format(S.mem));
+      }
+      save();
+    }
+  };
+
+  function press(a, v){ const f = ACT[a]; if (f){ f(v); render(); } }
+
+  /* ----- render ----- */
+  const exprEl = $('expr'), resEl = $('result'), prevEl = $('prev');
+  function sizeFor(len){ return len <= 9 ? 42 : len <= 12 ? 36 : len <= 15 ? 30 : len <= 19 ? 25 : 20; }
+
+  function render(){
+    document.documentElement.dataset.theme = S.theme;
+    document.querySelector('meta[name="theme-color"]').content = S.theme === 'dark' ? '#0E161C' : '#E4EAEE';
+    $('themeBtn').textContent = S.theme === 'dark' ? 'Light' : 'Dark';
+    $('degBtn').setAttribute('aria-pressed', S.angle === 'DEG');
+    $('radBtn').setAttribute('aria-pressed', S.angle === 'RAD');
+    $('angleBadge').textContent = S.angle;
+    $('memBadge').hidden = !S.hasMem;
+
+    const ph = S.hist[S.done ? 1 : 0];
+    prevEl.textContent = ph ? disp(ph.e) + ' = ' + ph.r : '';
+
+    exprEl.textContent = disp(S.expr) + (S.done ? ' =' : '');
+    exprEl.scrollTop = exprEl.scrollHeight;
+
+    resEl.className = 'result'; resEl.style.fontSize = '';
+    if (S.err){
+      resEl.className = 'result err';
+      resEl.innerHTML = '';
+      const k = document.createElement('span'); k.className = 'errk';
+      k.textContent = S.err.kind === 'syntax' ? 'Syntax error' : 'Math error';
+      resEl.appendChild(k); resEl.appendChild(document.createTextNode(S.err.message));
+    } else if (S.done){
+      const t = Engine.format(S.ans);
+      resEl.className = 'result final'; resEl.textContent = t; resEl.style.fontSize = sizeFor(t.length) + 'px';
+    } else if (!S.expr){
+      resEl.textContent = '0'; resEl.style.fontSize = '42px';
+    } else if (/^-?(\d+\.?\d*|\.\d+)(E[+-]?\d+)?$/.test(S.expr)){
+      resEl.textContent = S.expr; resEl.style.fontSize = sizeFor(S.expr.length) + 'px';
+    } else {
+      const p = previewValue();
+      const t = p === null ? '\u00A0' : Engine.format(p);
+      resEl.textContent = t; resEl.style.fontSize = sizeFor(t.length) + 'px';
+    }
+    renderHistory();
+  }
+
+  function renderHistory(){
+    const box = $('hlist'); box.innerHTML = '';
+    if (!S.hist.length){
+      const d = document.createElement('div'); d.className = 'hempty';
+      d.textContent = 'No calculations yet. Your results will appear here.'; box.appendChild(d); return;
+    }
+    S.hist.forEach((h, i) => {
+      const it = document.createElement('div'); it.className = 'hitem';
+      const be = document.createElement('button'); be.className = 'h-expr'; be.textContent = disp(h.e);
+      be.dataset.i = i; be.dataset.h = 'e'; be.title = 'Edit this expression';
+      const br = document.createElement('button'); br.className = 'h-res'; br.textContent = '= ' + h.r;
+      br.dataset.i = i; br.dataset.h = 'r'; br.title = 'Use this result';
+      it.appendChild(be); it.appendChild(br); box.appendChild(it);
+    });
+  }
+
+  /* ----- events ----- */
+  document.addEventListener('click', ev => {
+    const b = ev.target.closest('button.k');
+    if (b) press(b.dataset.a, b.dataset.v);
+  });
+
+  $('hlist').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-h]'); if (!b) return;
+    const h = S.hist[+b.dataset.i]; if (!h) return;
+    if (b.dataset.h === 'r'){
+      startNew();
+      const m = trailingNum(S.expr);
+      if (m) S.expr = S.expr.slice(0, S.expr.length - m[0].length);
+      S.expr += fmtInput(h.v);
+    } else { S.expr = h.e; S.done = false; S.err = null; }
+    render(); $('history').classList.remove('open');
+  });
+
+  $('histBtn').onclick = () => $('history').classList.toggle('open');
+  $('histClose').onclick = () => $('history').classList.remove('open');
+  $('histClear').onclick = () => { S.hist = []; save(); render(); toast('History cleared'); };
+  $('themeBtn').onclick = () => { S.theme = S.theme === 'dark' ? 'light' : 'dark'; save(); render(); };
+  function setAngle(a){ S.angle = a; if (S.done){ S.done = false; } save(); render(); }
+  $('degBtn').onclick = () => setAngle('DEG');
+  $('radBtn').onclick = () => setAngle('RAD');
+
+  $('tabs').addEventListener('click', ev => {
+    const b = ev.target.closest('button[data-tab]'); if (!b) return;
+    $('sci').dataset.tab = b.dataset.tab;
+    $('tabs').querySelectorAll('button').forEach(x => x.setAttribute('aria-selected', x === b));
+  });
+
+  let tt;
+  function toast(msg){
+    const t = $('toast'); t.textContent = msg; t.classList.add('show');
+    clearTimeout(tt); tt = setTimeout(() => t.classList.remove('show'), 1600);
+  }
+
+  $('copyBtn').onclick = async () => {
+    let text = null;
+    if (S.done) text = Engine.format(S.ans);
+    else { const p = currentValue(); if (p !== null) text = Engine.format(p); }
+    if (text === null){ toast('Nothing to copy'); return; }
+    try { await navigator.clipboard.writeText(text); }
+    catch (e) {
+      const ta = document.createElement('textarea'); ta.value = text; document.body.appendChild(ta);
+      ta.select(); try { document.execCommand('copy'); } catch (e2) {} ta.remove();
+    }
+    toast('Copied ' + text);
+  };
+
+  document.addEventListener('keydown', e => {
+    if (e.ctrlKey || e.metaKey || e.altKey) return;
+    const k = e.key; let ok = true;
+    if (/^\d$/.test(k)) press('digit', k);
+    else if (k === '.' || k === ',') press('dot');
+    else if (k.length === 1 && '+-*/'.includes(k)) press('op', k);
+    else if (k === '(' || k === ')') press('paren', k);
+    else if (k === '^') press('infix', '^');
+    else if (k === '!') press('post', '!');
+    else if (k === '%') press('post', '%');
+    else if (k === 'Enter' || k === '=') press('eq');
+    else if (k === 'Backspace') press('bs');
+    else if (k === 'Escape') press('ce');
+    else if (k === 'Delete') press('ac');
+    else if (k === 'p') press('const', 'pi');
+    else if (k === 'e') press('const', 'e');
+    else if (k === 'E') press('exp');
+    else ok = false;
+    if (ok) e.preventDefault();
+  });
+
+  render();
+})();
+</script>
+
+</body>
+</html>
